@@ -7,6 +7,11 @@ Device must already be running **iPadOS 17.7.10 or 17.7.11**. Tested host here:
 Debian 13 (trixie) aarch64. `prebuilt/` binaries are `linux-arm64`; x86_64 builds
 via the same one-line commands in `install-deps.sh`.
 
+## Docs
+
+- **How to use (this port):** [HOWTO-USE.md](HOWTO-USE.md) — install, folder layout, restore/dualboot/boot, troubleshooting.
+- Upstream background: [Zer0xDev/upRa1n](https://github.com/Zer0xDev/upRa1n).
+
 ## Quick start
 
 ```bash
