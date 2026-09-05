@@ -23,8 +23,21 @@ def _aea_decrypt(aea_file: str, out: str):
     if shutil.which("aea"):
         return os.system(f'aea decrypt -i {aea_file} -o {out} -key-value "base64:{key}"')
     elif shutil.which("ipsw"):
-        return os.system(f'ipsw fw aea --key-val \'base64:{key}\' \'{aea_file}\' --output . && mv ./{aea_file.replace(".aea","")} {out} 2>/dev/null; '
-                         f'ipsw fw aea --key-val \'base64:{key}\' \'{aea_file}\' --output /tmp 2>&1 | tail -n 2')
+        outdir = os.path.dirname(os.path.abspath(out)) or "."
+        base = os.path.basename(aea_file)
+        if base.endswith(".aea"):
+            base = base[:-4]
+        os.makedirs(outdir, exist_ok=True)
+        ret = os.system(f"ipsw fw aea --key-val 'base64:{key}' '{aea_file}' --output '{outdir}'")
+        produced = os.path.join(outdir, base)
+        if (os.path.abspath(produced) != os.path.abspath(out)
+                and os.path.exists(produced)):
+            shutil.move(produced, out)
+        if os.path.getsize(out) > 100:
+            log(message=f"Successfully decrypted {aea_file} to {out}!", type="success")
+        else:
+            log(message=f"An error occurred while decrypting {aea_file}", type="error")
+        return ret
     else:
         log(message="Neither `aea` nor `ipsw` found! Install ipsw: https://github.com/blacktop/ipsw/releases", type="error")
         return 1
