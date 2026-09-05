@@ -50,7 +50,7 @@ def send_file_to_ssh(local_path: str, remote_path: str):
     hostname = "localhost"
     port = 2222
     username = "root"
-    password = "alpine"
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -75,7 +75,7 @@ def download_file_from_device(file: str):
     hostname = "localhost"
     port = 2222
     username = "root"
-    password = "alpine"
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -96,10 +96,12 @@ def download_file_from_device(file: str):
 
 
 def execute_palera1n_command(command: str):
-    hostname = "localhost"
-    port = 2222
+    # Use direct iPad IP if available, otherwise fall back to iproxy localhost:2222
+    ipad_ip = os.environ.get("UPRA1N_IPAD_IP", "192.168.0.215")
+    hostname = ipad_ip if ipad_ip else "localhost"
+    port = 22 if ipad_ip else 2222
     username = "root"
-    password = "alpine"
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -130,7 +132,7 @@ def execute_palera1n_command_with_output(command: str):
     hostname = "localhost"
     port = 2222
     username = "root"
-    password = "alpine"
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -364,7 +366,8 @@ def execute_ssh_command_without_output(command: str):
     hostname = "localhost"
     port = 2222
     username = "root"
-    password = "alpine"
+    # Use password from env var or default
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -392,10 +395,12 @@ def execute_ssh_command_without_output(command: str):
         client.close()
 
 def execute_ssh_command_with_output(command: str):
-    hostname = "localhost"
-    port = 2222
+    # Use direct iPad IP if available, otherwise fall back to iproxy localhost:2222
+    ipad_ip = os.environ.get("UPRA1N_IPAD_IP", "192.168.0.215")
+    hostname = ipad_ip if ipad_ip else "localhost"
+    port = 22 if ipad_ip else 2222
     username = "root"
-    password = "alpine"
+    password = os.environ.get("UPRA1N_SSH_PASS", "1234")
 
     client = paramiko.SSHClient()
 
@@ -465,6 +470,7 @@ def main():
     auto_current = os.environ.get("UPRA1N_CURRENT")    # "17.7.10" or "17.7.11"
     auto_clean = os.environ.get("UPRA1N_CLEAN")       # "Y" to clean old files
     auto_jb = os.environ.get("UPRA1N_JAILBROKEN")    # "Y" / "N"
+    auto_ipad_ip = os.environ.get("UPRA1N_IPAD_IP")   # "192.168.0.215" (optional, defaults to this)
     auto_mode = all([auto_ipsw, auto_version, auto_model, auto_current])
 
     if result == False:
@@ -602,7 +608,10 @@ def main():
             shutil.rmtree(version)
             sys.exit()
     else:
-        warning = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Make sure you have more than 25GB of free space on your machine, otherwise the script may not work. Press [ENTER/Return]")
+        if auto_mode:
+            log(message="AUTO-MODE: proceeding with IPSW unpack...", type="success")
+        else:
+            warning = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Make sure you have more than 25GB of free space on your machine, otherwise the script may not work. Press [ENTER/Return]")
         log(message="Unpacking IPSW file...", type="progress")
         try:
             ipsw = ZipFile(file=ipsw_file)
@@ -656,7 +665,11 @@ def main():
                 
         os.chdir("..")
     
-    ask_for_jailbreak = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Is your device jailbroken? [Y/n]: ")
+    if auto_mode and auto_jb:
+        ask_for_jailbreak = auto_jb
+        log(message=f"AUTO-MODE: jailbroken = {auto_jb}", type="success")
+    else:
+        ask_for_jailbreak = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Is your device jailbroken? [Y/n]: ")
 
     if ask_for_jailbreak == "n" or ask_for_jailbreak == "N":
         jailbreak_device()
@@ -669,7 +682,10 @@ def main():
     log(message="Waiting 15s ...", type="progress")
     time.sleep(15)
 
-    reconnect_cable = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Reconnect the cable and then press [ENTER/Return] ")
+    if auto_mode:
+        log(message="AUTO-MODE: simulating cable reconnect...", type="success")
+    else:
+        reconnect_cable = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Reconnect the cable and then press [ENTER/Return] ")
 
     log(message="Waiting 15s ...", type="progress")
 
@@ -681,7 +697,10 @@ def main():
         stderr=subprocess.DEVNULL
     )
 
-    warning = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Make sure you have more than 5GB of free space on your machine, otherwise the script may not work. Press [ENTER/Return]")
+    if auto_mode:
+        log(message="AUTO-MODE: continuing with restore...", type="success")
+    else:
+        warning = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Make sure you have more than 5GB of free space on your machine, otherwise the script may not work. Press [ENTER/Return]")
 
     time.sleep(1)
 
@@ -695,7 +714,11 @@ def main():
 
     os.chdir("SSHRD_Script")
 
-    user_put_dfu = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Put your device into Recovery Mode, then into DFU mode and then press [ENTER/Return]: ")
+    if auto_mode:
+        log(message="AUTO-MODE: waiting for DFU (user must put device in DFU)...", type="warning")
+        time.sleep(10)  # Give time for manual DFU
+    else:
+        user_put_dfu = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Put your device into Recovery Mode, then into DFU mode and then press [ENTER/Return]: ")
 
     log(message="Downloading iOS 17.7 ramdisk...", type="progress")
 
@@ -901,10 +924,17 @@ def main():
     time.sleep(4)
     execute_ssh_command_without_output(command="/sbin/reboot")
     os.system("palera1n -l")
-    when_ready_to_palera1n = input("\n#### STEP 2\n\nOnce your device boots into iOS 17, press [ENTER/Return] ")
+    if auto_mode:
+        log(message="AUTO-MODE: waiting for iOS 17 boot...", type="warning")
+        time.sleep(20)
+    else:
+        when_ready_to_palera1n = input("\n#### STEP 2\n\nOnce your device boots into iOS 17, press [ENTER/Return] ")
     log(message="Waiting 15s ...", type="progress")
     time.sleep(15)
-    reconnect_cable = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Reconnect the cable and then press [ENTER/Return] ")
+    if auto_mode:
+        log(message="AUTO-MODE: simulating cable reconnect...", type="success")
+    else:
+        reconnect_cable = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Reconnect the cable and then press [ENTER/Return] ")
     log(message="Waiting 15s ...", type="progress")
 
     time.sleep(15)
@@ -924,7 +954,11 @@ def main():
 
     time.sleep(4)
 
-    make_sure = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Before continuing, make sure the device is visible (ideviceinfo / lsusb). Press [ENTER/Return]: ")
+    if auto_mode:
+        log(message="AUTO-MODE: continuing...", type="success")
+        time.sleep(5)
+    else:
+        make_sure = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Before continuing, make sure the device is visible (ideviceinfo / lsusb). Press [ENTER/Return]: ")
 
     log(message="Fixing up var ...", type="progress")
     time.sleep(2)
@@ -1010,7 +1044,11 @@ def boot_device_and_clean():
 
     time.sleep(2)
 
-    make_sure = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Before continuing, make sure the device is visible (ideviceinfo / lsusb). Press [ENTER/Return]: ")
+    if auto_mode:
+        log(message="AUTO-MODE: continuing...", type="success")
+        time.sleep(5)
+    else:
+        make_sure = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Before continuing, make sure the device is visible (ideviceinfo / lsusb). Press [ENTER/Return]: ")
 
     log(message="Deleting iOS 17 ...", type="progress")
 
