@@ -457,6 +457,16 @@ def main():
     print("#=====================\n\n")
     result = check_dependencies()
     option = ""
+
+    # Auto-mode via env vars (for non-interactive automation)
+    auto_ipsw = os.environ.get("UPRA1N_IPSW")        # "1" for first .ipsw
+    auto_version = os.environ.get("UPRA1N_VERSION")    # "18.7.10"
+    auto_model = os.environ.get("UPRA1N_MODEL")        # "1" (WiFi) or "2" (Cellular)
+    auto_current = os.environ.get("UPRA1N_CURRENT")    # "17.7.10" or "17.7.11"
+    auto_clean = os.environ.get("UPRA1N_CLEAN")       # "Y" to clean old files
+    auto_jb = os.environ.get("UPRA1N_JAILBROKEN")    # "Y" / "N"
+    auto_mode = all([auto_ipsw, auto_version, auto_model, auto_current])
+
     if result == False:
         ask = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Do you want to force skip dependencies check? (Y/n): ")
         log(message="WARNING! This may break installation process!", type="warning")
@@ -506,7 +516,10 @@ def main():
 
 
     if os.path.exists("disk2.bin"):
-        ask = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Do you want to clean old files? (Y/n): ")
+        if auto_mode and auto_clean:
+            ask = auto_clean
+        else:
+            ask = input(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Do you want to clean old files? (Y/n): ")
         if "y" in ask or "Y" in ask:
             check_and_delete("IM4M")
             check_and_delete("devicetred")
@@ -543,10 +556,17 @@ def main():
         log(message="Could not find iOS 18 IPSW File! Place it into upRa1n folder.", type="error")
         sys.exit()
 
-    ipsw_file_input = int(input("\n==> Select iOS 18 IPSW file: "))
-    version = input("\n==> Enter iOS Version: ")
-    model = input("\n==> Select iPad model (1 -- WiFi, 2 -- Cellular): ")
-    currentOSVersion = input("\n==> What version of iPadOS is installed on your device?: ")
+    if auto_mode:
+        ipsw_file_input = int(auto_ipsw)
+        version = auto_version
+        model = auto_model
+        currentOSVersion = auto_current
+        log(message="AUTO-MODE: using env vars", type="success")
+    else:
+        ipsw_file_input = int(input("\n==> Select iOS 18 IPSW file: "))
+        version = input("\n==> Enter iOS Version: ")
+        model = input("\n==> Select iPad model (1 -- WiFi, 2 -- Cellular): ")
+        currentOSVersion = input("\n==> What version of iPadOS is installed on your device?: ")
     if (currentOSVersion == "17.7.10" and model == "1"):
         pass
     elif (currentOSVersion == "17.7.11" and model == "1"):
